@@ -158,6 +158,10 @@ func (tf *TmpFile) CheckReservedLock() (bool, error) {
 	return count > 0, nil
 }
 
+func (tf *TmpFile) FileControl(op int) error {
+	return nil
+}
+
 func (tf *TmpFile) SectorSize() int64 {
 	return 0
 }

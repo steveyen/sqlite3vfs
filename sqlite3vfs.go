@@ -89,5 +89,4 @@ const (
 	AccessExists    AccessFlag = 0 // Does the file exist?
 	AccessReadWrite AccessFlag = 1 // Is the file both readable and writeable?
 	AccessRead      AccessFlag = 2 // Is the file readable?
-
 )

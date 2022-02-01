@@ -1,4 +1,4 @@
-module github.com/psanford/sqlite3vfs
+module github.com/steveyen/sqlite3vfs
 
 go 1.15
 

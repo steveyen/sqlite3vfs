@@ -390,6 +390,28 @@ func goVFSCheckReservedLock(cfile *C.sqlite3_file, pResOut *C.int) C.int {
 	return sqliteOK
 }
 
+//export goVFSFileControl
+func goVFSFileControl(cfile *C.sqlite3_file, op C.int) C.int {
+	s3vfsFile := (*C.s3vfsFile)(unsafe.Pointer(cfile))
+
+	fileID := uint64(s3vfsFile.id)
+
+	fileMux.Lock()
+	file := fileMap[fileID]
+	fileMux.Unlock()
+
+	if file == nil {
+		return errToC(GenericError)
+	}
+
+	err := file.FileControl(int(op))
+	if err != nil {
+		return errToC(err)
+	}
+
+	return sqliteOK
+}
+
 //export goVFSSectorSize
 func goVFSSectorSize(cfile *C.sqlite3_file) C.int {
 	s3vfsFile := (*C.s3vfsFile)(unsafe.Pointer(cfile))

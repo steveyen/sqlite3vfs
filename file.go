@@ -53,6 +53,8 @@ type File interface {
 	// and false otherwise.
 	CheckReservedLock() (bool, error)
 
+	FileControl(op int) error
+
 	// SectorSize returns the sector size of the device that underlies
 	// the file. The sector size is the minimum write that can be
 	// performed without disturbing other bytes in the file.
