@@ -17,7 +17,7 @@ func RegisterVFS(name string, vfs VFS, opts ...Option) error {
 
 	extVFS, ok := vfs.(ExtendedVFSv1)
 	if !ok {
-		extVFS = &defaultVFSv1{vfs}
+		extVFS = &DefaultVFSv1{vfs}
 	}
 
 	maxPathName := vfsOpts.maxPathName

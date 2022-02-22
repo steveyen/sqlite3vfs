@@ -10,7 +10,6 @@ import (
 )
 
 func TestSqlite3vfs(t *testing.T) {
-
 	vfs := newTempVFS()
 
 	vfsName := "tmpfs"

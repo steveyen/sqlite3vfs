@@ -15,34 +15,33 @@ import (
 )
 
 var (
-	vfsMap = make(map[string]ExtendedVFSv1)
+	VfsMap = make(map[string]ExtendedVFSv1)
 
-	fileMux    sync.Mutex
-	nextFileID uint64
-	fileMap    = make(map[uint64]File)
+	FileMux    sync.Mutex
+	NextFileID uint64
+	FileMap    = make(map[uint64]File)
 )
 
 func newVFS(name string, goVFS ExtendedVFSv1, maxPathName int) error {
-	vfsMap[name] = goVFS
+	VfsMap[name] = goVFS
 
 	rc := C.s3vfsNew(C.CString(name), C.int(maxPathName))
 	if rc == C.SQLITE_OK {
 		return nil
 	}
 
-	return errFromCode(int(rc))
+	return ErrFromCode(int(rc))
 }
 
 //export goVFSOpen
 func goVFSOpen(cvfs *C.sqlite3_vfs, name *C.char, retFile *C.sqlite3_file, flags C.int, outFlags *C.int) C.int {
-
 	fileName := C.GoString(name)
 
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	file, retFlags, err := vfs.Open(fileName, OpenFlag(flags))
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
 	if retFlags != 0 && outFlags != nil {
@@ -52,28 +51,28 @@ func goVFSOpen(cvfs *C.sqlite3_vfs, name *C.char, retFile *C.sqlite3_file, flags
 	cfile := (*C.s3vfsFile)(unsafe.Pointer(retFile))
 	C.memset(unsafe.Pointer(cfile), 0, C.sizeof_s3vfsFile)
 
-	fileMux.Lock()
-	fileID := nextFileID
-	nextFileID++
+	FileMux.Lock()
+	fileID := NextFileID
+	NextFileID++
 	cfile.id = C.sqlite3_uint64(fileID)
-	fileMap[fileID] = file
-	fileMux.Unlock()
+	FileMap[fileID] = file
+	FileMux.Unlock()
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSDelete
 func goVFSDelete(cvfs *C.sqlite3_vfs, zName *C.char, syncDir C.int) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	fileName := C.GoString(zName)
 
 	err := vfs.Delete(fileName, syncDir > 0)
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 // The flags argument to xAccess() may be SQLITE_ACCESS_EXISTS to test
@@ -89,7 +88,7 @@ func goVFSDelete(cvfs *C.sqlite3_vfs, zName *C.char, syncDir C.int) C.int {
 // indicate whether or not the file is accessible.
 //export goVFSAccess
 func goVFSAccess(cvfs *C.sqlite3_vfs, zName *C.char, cflags C.int, pResOut *C.int) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	fileName := C.GoString(zName)
 	flags := AccessFlag(cflags)
@@ -103,15 +102,15 @@ func goVFSAccess(cvfs *C.sqlite3_vfs, zName *C.char, cflags C.int, pResOut *C.in
 	*pResOut = C.int(out)
 
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSFullPathname
 func goVFSFullPathname(cvfs *C.sqlite3_vfs, zName *C.char, nOut C.int, zOut *C.char) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	fileName := C.GoString(zName)
 
@@ -121,17 +120,17 @@ func goVFSFullPathname(cvfs *C.sqlite3_vfs, zName *C.char, nOut C.int, zOut *C.c
 	defer C.free(unsafe.Pointer(path))
 
 	if len(s)+1 >= int(nOut) {
-		return errToC(TooBigError)
+		return ErrToC(TooBigError)
 	}
 
 	C.memcpy(unsafe.Pointer(zOut), unsafe.Pointer(path), C.size_t(len(s)+1))
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSRandomness
 func goVFSRandomness(cvfs *C.sqlite3_vfs, nByte C.int, zOut *C.char) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	buf := (*[1 << 28]byte)(unsafe.Pointer(zOut))[:int(nByte):int(nByte)]
 
@@ -141,13 +140,13 @@ func goVFSRandomness(cvfs *C.sqlite3_vfs, nByte C.int, zOut *C.char) C.int {
 
 //export goVFSSleep
 func goVFSSleep(cvfs *C.sqlite3_vfs, microseconds C.int) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	d := time.Duration(microseconds) * time.Microsecond
 
 	vfs.Sleep(d)
 
-	return sqliteOK
+	return SqliteOK
 }
 
 // Find the current time (in Universal Coordinated Time).  Write into *piNow
@@ -160,14 +159,14 @@ func goVFSSleep(cvfs *C.sqlite3_vfs, microseconds C.int) C.int {
 // cannot be found.
 //export goVFSCurrentTimeInt64
 func goVFSCurrentTimeInt64(cvfs *C.sqlite3_vfs, piNow *C.sqlite3_int64) C.int {
-	vfs := vfsFromC(cvfs)
+	vfs := VfsFromC(cvfs)
 
 	ts := vfs.CurrentTime()
 
 	unixEpoch := int64(24405875) * 8640000
 	*piNow = C.sqlite3_int64(unixEpoch + ts.UnixNano()/1000000)
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSClose
@@ -176,21 +175,21 @@ func goVFSClose(cfile *C.sqlite3_file) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	delete(fileMap, fileID)
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	delete(FileMap, fileID)
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.Close()
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSRead
@@ -199,20 +198,20 @@ func goVFSRead(cfile *C.sqlite3_file, buf unsafe.Pointer, iAmt C.int, iOfst C.sq
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	goBuf := (*[1 << 28]byte)(buf)[:int(iAmt):int(iAmt)]
 	n, err := file.ReadAt(goBuf, int64(iOfst))
 	if err == io.EOF {
-		return errToC(IOErrorShortRead)
+		return ErrToC(IOErrorShortRead)
 	} else if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
 	if n < len(goBuf) {
@@ -220,10 +219,10 @@ func goVFSRead(cfile *C.sqlite3_file, buf unsafe.Pointer, iAmt C.int, iOfst C.sq
 		for i := n; i < len(goBuf); i++ {
 			goBuf[i] = 0
 		}
-		return errToC(IOErrorShortRead)
+		return ErrToC(IOErrorShortRead)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSWrite
@@ -232,22 +231,22 @@ func goVFSWrite(cfile *C.sqlite3_file, buf unsafe.Pointer, iAmt C.int, iOfst C.s
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	goBuf := (*[1 << 28]byte)(buf)[:int(iAmt):int(iAmt)]
 
 	_, err := file.WriteAt(goBuf, int64(iOfst))
 	if err != nil {
-		return errToC(IOErrorWrite)
+		return ErrToC(IOErrorWrite)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSTruncate
@@ -256,20 +255,20 @@ func goVFSTruncate(cfile *C.sqlite3_file, size C.sqlite3_int64) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.Truncate(int64(size))
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSSync
@@ -278,20 +277,20 @@ func goVFSSync(cfile *C.sqlite3_file, flags C.int) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.Sync(SyncType(flags))
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSFileSize
@@ -300,22 +299,22 @@ func goVFSFileSize(cfile *C.sqlite3_file, pSize *C.sqlite3_int64) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	n, err := file.FileSize()
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
 	*pSize = C.sqlite3_int64(n)
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSLock
@@ -324,20 +323,20 @@ func goVFSLock(cfile *C.sqlite3_file, eLock C.int) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.Lock(LockType(eLock))
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSUnlock
@@ -346,20 +345,20 @@ func goVFSUnlock(cfile *C.sqlite3_file, eLock C.int) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.Unlock(LockType(eLock))
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSCheckReservedLock
@@ -368,17 +367,17 @@ func goVFSCheckReservedLock(cfile *C.sqlite3_file, pResOut *C.int) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	locked, err := file.CheckReservedLock()
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
 	if locked {
@@ -387,7 +386,7 @@ func goVFSCheckReservedLock(cfile *C.sqlite3_file, pResOut *C.int) C.int {
 		*pResOut = C.int(1)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSFileControl
@@ -396,20 +395,20 @@ func goVFSFileControl(cfile *C.sqlite3_file, op C.int, pArg unsafe.Pointer) C.in
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
-		return errToC(GenericError)
+		return ErrToC(GenericError)
 	}
 
 	err := file.FileControl(int(op), pArg)
 	if err != nil {
-		return errToC(err)
+		return ErrToC(err)
 	}
 
-	return sqliteOK
+	return SqliteOK
 }
 
 //export goVFSSectorSize
@@ -418,9 +417,9 @@ func goVFSSectorSize(cfile *C.sqlite3_file) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
 		return 1024
@@ -435,9 +434,9 @@ func goVFSDeviceCharacteristics(cfile *C.sqlite3_file) C.int {
 
 	fileID := uint64(s3vfsFile.id)
 
-	fileMux.Lock()
-	file := fileMap[fileID]
-	fileMux.Unlock()
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
 
 	if file == nil {
 		return 0
@@ -446,13 +445,13 @@ func goVFSDeviceCharacteristics(cfile *C.sqlite3_file) C.int {
 	return C.int(file.DeviceCharacteristics())
 }
 
-func vfsFromC(cvfs *C.sqlite3_vfs) ExtendedVFSv1 {
+func VfsFromC(cvfs *C.sqlite3_vfs) ExtendedVFSv1 {
 	vfsName := C.GoString(cvfs.zName)
-	return vfsMap[vfsName]
+	return VfsMap[vfsName]
 }
 
-func errToC(err error) C.int {
-	if e, ok := err.(sqliteError); ok {
+func ErrToC(err error) C.int {
+	if e, ok := err.(SqliteError); ok {
 		return C.int(e.code)
 	}
 	return C.int(GenericError.code)

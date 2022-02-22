@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-type defaultVFSv1 struct {
+type DefaultVFSv1 struct {
 	VFS
 }
 
-func (vfs *defaultVFSv1) Randomness(n []byte) int {
+func (vfs *DefaultVFSv1) Randomness(n []byte) int {
 	i, err := rand.Read(n)
 	if err != nil {
 		panic(err)
@@ -17,10 +17,10 @@ func (vfs *defaultVFSv1) Randomness(n []byte) int {
 	return i
 }
 
-func (vfs *defaultVFSv1) Sleep(d time.Duration) {
+func (vfs *DefaultVFSv1) Sleep(d time.Duration) {
 	time.Sleep(d)
 }
 
-func (vfs *defaultVFSv1) CurrentTime() time.Time {
+func (vfs *DefaultVFSv1) CurrentTime() time.Time {
 	return time.Now()
 }
