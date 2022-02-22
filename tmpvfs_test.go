@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"unsafe"
 )
 
 type TmpVFS struct {
@@ -158,7 +159,7 @@ func (tf *TmpFile) CheckReservedLock() (bool, error) {
 	return count > 0, nil
 }
 
-func (tf *TmpFile) FileControl(op int) error {
+func (tf *TmpFile) FileControl(op int, pArg unsafe.Pointer) error {
 	return nil
 }
 
