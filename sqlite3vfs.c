@@ -16,14 +16,14 @@ extern int goVFSCurrentTimeInt64(sqlite3_vfs*, sqlite3_int64* piNow);
 
 extern int goVFSClose(sqlite3_file* file);
 extern int goVFSRead(sqlite3_file* file, void* buf, int iAmt, sqlite3_int64 iOfst);
-extern int goVFSWrite(sqlite3_file* file ,const void* buf, int iAmt, sqlite3_int64 iOfst);
+extern int goVFSWrite(sqlite3_file* file, const void* buf, int iAmt, sqlite3_int64 iOfst);
 extern int goVFSTruncate(sqlite3_file* file, sqlite3_int64 size);
 extern int goVFSSync(sqlite3_file* file, int flags);
 extern int goVFSFileSize(sqlite3_file* file, sqlite3_int64 *pSize);
 extern int goVFSLock(sqlite3_file* file, int eLock);
 extern int goVFSUnlock(sqlite3_file*, int eLock);
 extern int goVFSCheckReservedLock(sqlite3_file* file, int *pResOut);
-extern int goVFSFileControl(sqlite3_file* file, int op);
+extern int goVFSFileControl(sqlite3_file* file, int op, void *pArg);
 extern int goVFSSectorSize(sqlite3_file* file);
 extern int goVFSDeviceCharacteristics(sqlite3_file* file);
 
@@ -135,7 +135,7 @@ int s3vfsCheckReservedLock(sqlite3_file* file, int *pResOut) {
 }
 
 int s3vfsFileControl(sqlite3_file *file, int op, void *pArg){
-  return goVFSFileControl(file, op);
+  return goVFSFileControl(file, op, pArg);
 }
 
 int s3vfsSectorSize(sqlite3_file* file) {

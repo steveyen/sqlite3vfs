@@ -1,6 +1,7 @@
 package sqlite3vfs
 
 import "fmt"
+import "unsafe"
 
 type File interface {
 	Close() error
@@ -53,7 +54,7 @@ type File interface {
 	// and false otherwise.
 	CheckReservedLock() (bool, error)
 
-	FileControl(op int) error
+	FileControl(op int, pArg unsafe.Pointer) error
 
 	// SectorSize returns the sector size of the device that underlies
 	// the file. The sector size is the minimum write that can be
