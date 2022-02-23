@@ -18,8 +18,10 @@ var (
 	VfsMap = make(map[string]ExtendedVFSv1)
 
 	FileMux    sync.Mutex
-	NextFileID uint64
+	NextFileID uint64 = 1
 	FileMap    = make(map[uint64]File)
+
+	DefaultSectorSize = 1024
 )
 
 func newVFS(name string, goVFS ExtendedVFSv1, maxPathName int) error {
@@ -422,7 +424,7 @@ func goVFSSectorSize(cfile *C.sqlite3_file) C.int {
 	FileMux.Unlock()
 
 	if file == nil {
-		return 1024
+		return C.int(DefaultSectorSize)
 	}
 
 	return C.int(file.SectorSize())
@@ -455,4 +457,24 @@ func ErrToC(err error) C.int {
 		return C.int(e.code)
 	}
 	return C.int(GenericError.code)
+}
+
+func FileIDToFile(fileID uint64) File {
+	FileMux.Lock()
+	file := FileMap[fileID]
+	FileMux.Unlock()
+	return file
+}
+
+func FileToFileID(f File) (uint64, bool) {
+	FileMux.Lock()
+	defer FileMux.Unlock()
+
+	for fileID, file := range FileMap {
+	    if file == f {
+	       return fileID, true
+	    }
+	}
+
+	return 0, false
 }
