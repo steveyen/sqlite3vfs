@@ -3,12 +3,12 @@ package sqlite3vfs
 import "fmt"
 
 type SqliteError struct {
-	code int
-	text string
+	Code int
+	Text string
 }
 
 func (e SqliteError) Error() string {
-	return fmt.Sprintf("sqlite (%d) %s", e.code, e.text)
+	return fmt.Sprintf("sqlite (%d) %s", e.Code, e.Text)
 }
 
 // https://www.sqlite.org/rescode.html
@@ -98,7 +98,7 @@ func ErrFromCode(code int) error {
 	}
 
 	return SqliteError{
-		code: code,
-		text: "unknown err code",
+		Code: code,
+		Text: "unknown err code",
 	}
 }

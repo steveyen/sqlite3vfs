@@ -19,7 +19,7 @@ var (
 
 	FileMux    sync.Mutex
 	NextFileID uint64 = 1
-	FileMap    = make(map[uint64]File)
+	FileMap           = make(map[uint64]File)
 
 	DefaultSectorSize = 1024
 )
@@ -454,9 +454,9 @@ func VfsFromC(cvfs *C.sqlite3_vfs) ExtendedVFSv1 {
 
 func ErrToC(err error) C.int {
 	if e, ok := err.(SqliteError); ok {
-		return C.int(e.code)
+		return C.int(e.Code)
 	}
-	return C.int(GenericError.code)
+	return C.int(GenericError.Code)
 }
 
 func FileIDToFile(fileID uint64) File {
@@ -471,8 +471,8 @@ func FileMapVisit(v func(uint64, File) bool) {
 	defer FileMux.Unlock()
 
 	for fileID, file := range FileMap {
-	    if !v(fileID, file) {
-	       return
-	    }
+		if !v(fileID, file) {
+			return
+		}
 	}
 }
