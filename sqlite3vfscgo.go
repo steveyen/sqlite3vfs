@@ -466,15 +466,13 @@ func FileIDToFile(fileID uint64) File {
 	return file
 }
 
-func FileToFileID(f File) (uint64, bool) {
+func FileMapVisit(v func(uint64, File) bool) {
 	FileMux.Lock()
 	defer FileMux.Unlock()
 
 	for fileID, file := range FileMap {
-	    if file == f {
-	       return fileID, true
+	    if !v(fileID, file) {
+	       return
 	    }
 	}
-
-	return 0, false
 }
