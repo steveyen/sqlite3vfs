@@ -208,17 +208,17 @@ func goVFSRead(cfile *C.sqlite3_file, buf unsafe.Pointer, iAmt C.int, iOfst C.sq
 
 	goBuf := (*[1 << 28]byte)(buf)[:int(iAmt):int(iAmt)]
 	n, err := file.ReadAt(goBuf, int64(iOfst))
+
+	// Fill unread portions of the buffer with zeros.
+	for i := n; i < len(goBuf); i++ {
+		goBuf[i] = 0
+	}
+
 	if err == io.EOF {
 		return ErrToC(IOErrorShortRead)
 	} else if err != nil {
 		return ErrToC(err)
-	}
-
-	if n < len(goBuf) {
-		// If xRead() returns SQLITE_IOERR_SHORT_READ it must also fill in the unread portions of the buffer with zeros.
-		for i := n; i < len(goBuf); i++ {
-			goBuf[i] = 0
-		}
+	} else if n < len(goBuf) {
 		return ErrToC(IOErrorShortRead)
 	}
 
